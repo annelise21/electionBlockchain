@@ -1,5 +1,5 @@
-#import "header/cellkey.h"
-#import "header/keys.h"
+#include "header/cellkey.h"
+#include "header/keys.h"
 CellKey * create_cell_key(Key* key) {
     // Crée et alloue une cellule de liste chaîne
     if(key == NULL) {
@@ -26,17 +26,35 @@ CellKey* headInsertCellKey(CellKey* CK, Key* key) {
     return tmp;
 }
 
-CellKey* read_public_keys(FILE *f) {
-    // Créer une liste chainée de clé à partir d'un fichier f
-    if(f == NULL) {
-        printf("[read_public_keys] Erreur de fichier\n");
+CellKey* read_public_keys(char* f){
+    CellKey* LCK=NULL;
+    FILE* fic = fopen(f,"r");
+    char buffer[256];
+    char virgule[10];
+    char cpkey[120];
+    char sskey[120];
+    Key* pkey;
+    while(fgets(buffer,256,fic)!=NULL){
+        if(strcmp(f,"candidates.txt")==0){
+            sscanf(buffer, "%s",cpkey);
+        }else if(strcmp(f,"keys.txt")==0){
+            // printf("je rentre\n");
+            sscanf(buffer, "%s , %s", cpkey,sskey);
+            // printf("cpkey=%s, sskey=%s\n",cpkey,sskey);
+        }else{
+            printf("Erreur lors du saisie du nom du fichier\n");
+            return NULL;
+        }
+        //printf("%s\n",cpkey);
+        pkey= str_to_key(cpkey);
+        // printf("val=%lx,n=%lx\n",pkey->keyValue,pkey->N);
+        LCK=headInsertCellKey(LCK,pkey);   
+     
     }
-    char buff[256];
-    CellKey *res = NULL;
-    while(fgets(buff,256,f) != NULL) {
-        res = headInsertCellKey(res,str_to_key(buff));
-    }
-    return res;
+    fclose(fic);
+    return LCK;
+
+
 }
 
 void print_list_keys(CellKey* LCK) {

@@ -180,10 +180,8 @@ int main() {
     // Generation aleatoire d'un processus de vote
     generate_random_data(100,10);
     // Affichage des cle publique des candidats
-    FILE *f = fopen("candidates.txt","r");
-    CellKey* listKeys = read_public_keys(f);
+    CellKey* listKeys = read_public_keys("candidates.txt");
     print_list_keys(listKeys);
-    fclose(f);
     delete_list_keys(listKeys);
 
     // Affichage et stockage d'une liste chainee de declarations signees

@@ -115,14 +115,14 @@ CellProtected *keepValidCellProtected(CellProtected* listCellProtected) {
             if(ptPrec == NULL) {
                 ptPrec = ptCellProtected;
                 ptCellProtected =ptCellProtected->next;
-                deleteCellProtected(ptPrec);
+                //deleteCellProtected(ptPrec);
                 listCellProtected = listCellProtected->next;
                 continue;
             } else {
                 ptPrec->next = ptCellProtected->next;
                 ptPrec = ptCellProtected;
                 ptCellProtected = ptCellProtected->next;
-                deleteCellProtected(ptPrec);
+                //deleteCellProtected(ptPrec);
             }
         } else {
             ptPrec = ptCellProtected;

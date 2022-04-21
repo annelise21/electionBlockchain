@@ -1,102 +1,134 @@
 #include "header/hash.h"
+#include "time.h"
 
-void generate_random_data(int nv, int nc) {
-    if(nv == 0 || nc == 0) {
-        printf("Args Error\n");
-        return;
+void generate_random_data(int nv, int nc){
+    FILE *keys;  
+    FILE *candidates;
+    FILE *declarations;
+    Key* pKey;
+    Key* sKey;
+    Key* tabcandidats[nc];
+    char buffer[256];
+    char spkey[256];
+    char sskey[256];
+    // Generation de la liste d'Electeurs
+    keys=fopen("keys.txt", "w"); 
+    for(int i=0; i<nv ;i++){
+        pKey=(Key*)malloc(sizeof(Key));
+        sKey=(Key*)malloc(sizeof(Key));
+        init_pair_keys(pKey,sKey,3,7);
+        char* fpKey=key_to_str(pKey);
+        char* fsKey=key_to_str(sKey);
+        fprintf(keys,"\t%s , %s\t\n",fpKey,fsKey);
+        free(fsKey);
+        free(fpKey);
+        free(sKey);
+        free(pKey);
     }
-    FILE *fv = fopen("keys.txt","w");
-    FILE *fc = fopen("candidates.txt","w");
-    FILE *fd = fopen("declarations.txt","w");
-    int* tabIndice = (int*)calloc(nv,sizeof(int));
-    if(tabIndice == NULL) {
-        printf("Erreur dans l'allocation d'un tableau d'indice, impossible de générer des candidats. \n");
-        return;
-    }
-    Key* tab_public_keys[nv];
-    Key* tab_secret_keys[nv];
-    Key* tab_candidate_keys[nc];
+    fclose(keys);
 
-    // (public,secret) keys generation
-    for(int i = 0; i < nv; i++) {
-        Key* pKey = (Key*)malloc(sizeof(Key));
-        Key* sKey = (Key*)malloc(sizeof(Key));
-        init_pair_keys(pKey,sKey,2,7);
-        fprintf(fv,"(%lx,%lx) (%lx,%lx)\n", pKey->keyValue, pKey->N, sKey->keyValue,sKey->N);
-        tab_public_keys[i] = pKey;
-        tab_secret_keys[i] = sKey;
+    // Generation de la liste des candidats
+    candidates=fopen("candidates.txt","w");
+    int tab[nv];
+    for (int i=0; i<nv;i++){
+        tab[i]=0;
     }
-
-    // Candidates selection
-    for(int i = 0; i < nc; i++) {
-        int pos = rand()%nc;
-        while(tabIndice[pos] == 1) {
-            pos = rand()%nc;
+    for(int j=0; j<nc; j++){
+        int ligne =rand() % nc;
+        while (tab[ligne]==1){
+            ligne= rand()%nc;
         }
-        tab_candidate_keys[i] = tab_public_keys[pos];
-        tabIndice[pos] = 1;
-        fprintf(fc,"(%lx,%lx)\n", tab_candidate_keys[i]->keyValue, tab_candidate_keys[i]->N);
+        tab[ligne]=1;//actualise le tableau des candidats deja selectionnés
+        keys=fopen("keys.txt","r");
+        // selection du candidat au hasard
+        for(int i=0; i<=ligne; i++){
+            fgets(buffer,256,keys);
+        }
+        sscanf(buffer, "%s , %s",spkey,sskey);
+        fprintf(candidates, "\t%s\n",spkey);
+        tabcandidats[j] = str_to_key(spkey);
+         
+        fclose(keys);     
     }
 
-    // Declarations
-    for(int i = 0; i < nv; i++) {
-        int idCandidate = rand()%nc;
-        char *vote = key_to_str(tab_candidate_keys[idCandidate]);
-        Signature *voteSign = sign(vote, tab_secret_keys[i]);
-        Protected *voteProtected = init_protected(tab_public_keys[i],vote,voteSign);
-        char *declaration = protected_to_str(voteProtected);
-        fprintf(fd,"%s\n", declaration);
-        freeSignature(voteSign);
-        free(voteProtected->mess);
-        free(voteProtected);
-        free(declaration);
-    }
-    for(int i = 0; i < nv; i++) {
-        free(tab_public_keys[i]);
+    fclose(candidates);
+
+    // Generations des déclariations de vote signées
+
+    keys=fopen("keys.txt","r");
+    declarations=fopen("declarations.txt","w" );
+
+    for (int i=0; i<nv; i++){
+        fgets(buffer,256,keys);
+        sscanf(buffer, "%s , %s",spkey,sskey);
+        // printf("\nspkey=%s,sskey=%s",spkey,sskey);
+        Key* pkey=str_to_key(spkey);
+        Key* skey= str_to_key(sskey);
+        int val = rand()%nc;
+        // printf("val = %d\n",val);
+        char* mess= key_to_str(tabcandidats[val]);
+        // printf("mess=%s\n",mess );
+        // printf("pKey= (%llx,%llx)\n",pkey->N,pkey->keyValue);
+        Signature* signE = sign(mess,skey);
+        Protected* pr = init_protected(pkey, mess, signE);
+        verify(pr);
+        char* cpr= protected_to_str(pr);
+        // printf("pr= %s\n",cpr);
+        fprintf(declarations, "%s\n",cpr);
+        free(pkey);
+        free(skey);
+        free(mess);
+        free(signE);
+        // d'autres free a faire de pr et sign , a compléter...
+        free(pr);
+        free(cpr);
+        
     }
 
-    for(int i = 0; i < nv; i++) {
-        free(tab_secret_keys[i]);
-    }
-    free(tabIndice);
-    fclose(fv);
-    fclose(fc);
-    fclose(fd);
+    // free de tabcandidats
+
+    fclose(keys);
+    fclose(declarations);
 }
 
 int main(int argc, char** argv){
-    if(argc != 3){
-        printf("Nombre d'arguments incorrect.\n");
-        return 1;
-    }
     srand(time(NULL));
-    int nv = atoi(argv[1]);
-    int nc = atoi(argv[2]);
-    generate_random_data(nv, nc);
-    CellProtected *cp = read_protectedCell();
-    printCellProtected(cp);
+    generate_random_data(100,2);
 
-    keepValidCellProtected(cp);
+    // tests exercice 5
+    // CellKey* LKC =  read_public_keys("candidates.txt");
+    // print_list_keys(LKC);
+    // delete_list_keys(LKC);
     
-    FILE *fc = fopen("candidates.txt","r");
-    FILE *fv = fopen("keys.txt","r");
-    CellKey* cand = read_public_keys(fc);
-    CellKey* vot = read_public_keys(fv);
+    CellProtected* declarations= read_protectedCell();
+    printf("\nliste declarations:\n");
+    printCellProtected(declarations);
+    Protected* pl= malloc(sizeof(Protected));
+    pl->mess=declarations->data->mess;
+    pl->pKey=declarations->data->pKey;
+    pl->sign=declarations->next->data->sign;
+    declarations=headInsertCellProtected(pl,declarations);
+    printf("\napres ajout\n");
+    printCellProtected(declarations);
+    declarations=keepValidCellProtected(declarations);
+    printf("\napres supression:\n");
+    printCellProtected(declarations);
+    CellKey* voters = read_public_keys("keys.txt");
+    printf("\nvotant:\n");
+    print_list_keys(voters);
+   
+    CellKey* candidates= read_public_keys("candidates.txt");
+    printf("\ncandidats:\n");
+    print_list_keys(candidates);
+    Key* gagnant= compute_winner(declarations,candidates,voters, 20, 200);
+    char* g=key_to_str(gagnant);
 
-    HashCell* cellule = create_hashcell(cand->data);
-    HashTable* table = create_hashtable(cand, 40);
+    printf("\ngagnant: %s\n",g);
+    
 
-    Key *vainqueur = compute_winner(cp, cand, vot, 16, 36);
-    char* strvainq = key_to_str(vainqueur);
-    printf("vainqueur : %s\n", strvainq);
+    
+    
+    
 
-    deleteListCellProtected(cp);
-    delete_list_keys(cand);
-    delete_list_keys(vot);
-    delete_hashtable(table);
-    free(cellule->key);
-    free(cellule);
-    free(vainqueur);
-    free(strvainq);
     return 0;
 }
