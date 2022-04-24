@@ -79,7 +79,6 @@ void generate_random_data(int nv, int nc){
         free(skey);
         free(mess);
         free(signE);
-        // d'autres free a faire de pr et sign , a compléter...
         free(pr);
         free(cpr);
         

@@ -1,4 +1,7 @@
 #include "header/blockchain.h"
+#include "header/block.h"
+#include "header/cellkey.h"
+#include "header/keys.h"
 #include <math.h>
 
 CellTree* create_node(Block *b) {
@@ -115,8 +118,42 @@ void submit_vote(Protected *p) {
     fprintf(pending_vote, "%s\n", str);
     free(str);
 }
-
-void create_block(CellTree* tree, Key* author, int d) {
-    CellTree *feuille = last_node(tree);
-    
+void create_block(CellTree* tree, Key* author, int d){
+    Block* block=(Block*)malloc(sizeof(Block));
+    CellProtected* cp= read_protectedCell("Pending_votes.txt");
+    remove("Pending_votes.txt");
+    block->votes= cp;
+    Key* auteur= (Key*)malloc(sizeof(Key));
+    init_key(auteur,author->keyValue,author->N);
+    block->author=auteur;
+    CellTree* t= last_node(tree);
+    Block* lastBlock= t->block;
+    block->previous_hash=lastBlock->hash;
+    compute_proof_of_work(block,d);
+    FILE* f= fopen("Pending_block.txt","w");
+    fprintblock(f,block);  
 }
+void add_block(int d , char* name){
+    FILE* f= fopen("Pending_block.txt","r");
+    Block* block= freadblock(f);
+    char nomfic[256];
+    fclose(f);
+    remove("Pending_block.txt");
+    if (block!=NULL){
+        if (compute_proof_of_work(block,d)==true){
+            strcpy(nomfic,"./Blockchain/");
+            strcat(nomfic,name);
+            // on suppose que le repertoire BlockChain existe deja
+            FILE* name= fopen(nomfic,"w");
+            if (name!=NULL){
+                fprintblock(name,block);
+                fclose(name);
+            } 
+        }
+        delete_block(block);
+    }
+
+}
+CellTree* read_tree();
+Key* compute_winner_BT(CellTree* tree, CellKey* candidates, CellKey* voters, int sizeC, int sizeV);
+      
