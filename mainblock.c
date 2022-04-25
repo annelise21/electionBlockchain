@@ -12,7 +12,6 @@ int main() {
     char *bts = block_to_str(BlockTest);
     printf("%s\n", bts);
 
-
     clock_t temps_initial;
     clock_t temps_final;
     double temps_cpu; 

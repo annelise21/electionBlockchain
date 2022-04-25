@@ -1,6 +1,7 @@
 {
     "makefile.extensionOutputFolder": "./.vscode",
     "files.associations": {
-        "protected.h": "c"
+        "protected.h": "c",
+        "blockchain.h": "c"
     }
 }

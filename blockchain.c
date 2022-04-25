@@ -3,6 +3,8 @@
 #include "header/cellkey.h"
 #include "header/keys.h"
 #include <math.h>
+#include <dirent.h>
+#include <stdio.h>
 
 CellTree* create_node(Block *b) {
     CellTree *retCT = (CellTree*)malloc(sizeof(CellTree));
@@ -12,7 +14,7 @@ CellTree* create_node(Block *b) {
     }
     retCT->block = b;
     retCT->father = NULL;
-    retCT->firstChild = NULL;
+    retCT->child = NULL;
     retCT->nextBro = NULL;
     retCT->height = 0;
 }
@@ -28,15 +30,15 @@ int update_height(CellTree *father, CellTree *child) {
     return 0;
 }
 
-void add_child(CellTree *father; CellTree* child) {
+void add_child(CellTree *father, CellTree* child) {
     if(father == NULL || child == NULL) { return; }
     CellTree* pointerFather = father;
-    CellTree *pointerCT = child;:
+    CellTree *pointerCT = child;
     if(father->child == NULL) {
         father->child = child;
     } else {
         // On cherche le premier frère libre
-        pointerCT = father->child;
+        pointerCT = (CellTree*)father->child;
         while(pointerCT != NULL) {
             pointerCT = pointerCT->nextBro;
         }
@@ -59,8 +61,8 @@ void print_tree(CellTree *racine) {
     // On affiche le noeud courant 
     printf("Height : %d, \t Hash : %s\n", racine->height,racine->block->hash);
 
-    // On fait un appel récursif sur nextBro et firstChild
-    print_tree(racine->firstChild);
+    // On fait un appel récursif sur nextBro et child
+    print_tree(racine->child);
     print_tree(racine->nextBro);
 }
 
@@ -68,8 +70,8 @@ void delete_node(CellTree* node) {
     if(node == NULL) {
         return;
     }
-    node->firstChild->father = NULL;
-    node->father->fistChild = node->nextBro;
+    node->child->father = NULL;
+    node->father->child = node->nextBro;
     delete_block(node->block);
     free(node);
 }
@@ -81,14 +83,14 @@ void delete_tree(CellTree* racine,bool father) {
     if(father) {
         delete_tree(racine->nextBro,false);
     }
-    delete_tree(racine->firstChild,false);
+    delete_tree(racine->child,false);
     delete_node(racine);
 }
 
 CellTree* highest_child(CellTree* cell) {
     // On prend les deux premiers fils de cell
-    CellTree* retCellTree = cell->firstChild;
-    CellTree* compCellTree = cell->firstChild->nextBro;
+    CellTree* retCellTree = cell->child;
+    CellTree* compCellTree = cell->child->nextBro;
 
     // On compare en gardant le fils avec la plus grande hauteur a chaque itération
     while(compCellTree != NULL) {
@@ -140,7 +142,7 @@ void add_block(int d , char* name){
     fclose(f);
     remove("Pending_block.txt");
     if (block!=NULL){
-        if (compute_proof_of_work(block,d)==true){
+        if (verify_block(block,d)==true){
             strcpy(nomfic,"./Blockchain/");
             strcat(nomfic,name);
             // on suppose que le repertoire BlockChain existe deja
@@ -154,6 +156,63 @@ void add_block(int d , char* name){
     }
 
 }
-CellTree* read_tree();
-Key* compute_winner_BT(CellTree* tree, CellKey* candidates, CellKey* voters, int sizeC, int sizeV);
+CellTree* read_tree(){
+    // on suppose que la taille du tableau est superieur au nombre de fichier lu dans Blockchain
+    CellTree** T = (CellTree**)calloc(256,sizeof(CellTree*));
+    DIR *rep = opendir("./Blockchain/");
+    char nomfic[256];
+    FILE* f;
+    int i =0;
+    Block* b;
+    if (rep !=NULL){
+        struct dirent * dir;
+        while (( dir == readdir(rep))) {
+            if (strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..") != 0){
+                printf("Chemin du fichier : ./Blockchain/%s \n", dir->d_name);
+                strcpy(nomfic,"./Blockchain/");
+                strcat(nomfic,dir->d_name);
+                f= fopen(nomfic,"r");
+                if (f!=NULL){
+                    b= freadblock(f);
+                    T[i]= create_node(b);
+                    i++;
+                }
+            }
+            closedir(rep);
+
+
+        }
+    }
+    int taille= i+1;
+    int j;
+    for( i=0; i<taille; i++){
+        for (j=0; i<taille; j++){
+            if( i!=j && strcmp(T[j]->block->previous_hash,T[i]->block->hash) == 0 ){
+                add_child(T[i],T[j]);
+            }
+            j++;
+        }
+        j=0;
+
+    }
+    for (int k=0; k<taille; k++){
+        if (T[k]->father==NULL){
+            return T[k];
+        }
+    }
+    printf("il y a une erreur quelque part\n");
+    return NULL;
+
+}
+Key* compute_winner_BT(CellTree* tree, CellKey* candidates, CellKey* voters, int sizeC, int sizeV){
+
+    CellProtected* declarations= NULL;
+    CellTree* T = highest_child(tree);
+    while(T!=NULL){
+        declarations=fusion(declarations,T->block->votes);
+        T=T->child;
+    }
+    declarations=keepValidCellProtected(declarations);
+    return compute_winner(declarations,candidates,voters,sizeC,sizeV);
+}
       
